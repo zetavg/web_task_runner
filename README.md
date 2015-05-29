@@ -1,4 +1,4 @@
-# WebTaskRunner
+# WebTaskRunner [![Build Status](https://travis-ci.org/Neson/web_task_runner.svg?branch=master)](https://travis-ci.org/Neson/web_task_runner)
 
 Web wrapper to run a specific task with [Sidekiq](http://sidekiq.org/).
 Provides HTTP API to start, stop, get status of the task running in background,
