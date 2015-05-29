@@ -15,7 +15,7 @@ class WebTaskRunner < Sinatra::Application
       exec
 
       puts "Job ##{job_number} done."
-      WebTaskRunner.work_ended
+      WebTaskRunner.job_ended
     end
 
     def job_number

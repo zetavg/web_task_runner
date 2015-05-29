@@ -48,13 +48,13 @@ class WebTaskRunner < Sinatra::Application
     return 'kill'
   end
 
-  # Report that a worker has done working, call this in each worker after
+  # Report that a job has been done, call this in each job after
   # the work has done
-  def self.work_ended(all: false)
+  def self.job_ended(all: false)
     if all
       WebTaskRunner::RedisModule.redis.set('task:working_jobs', 0)
     else
-      # decrease the working workers count
+      # decrease the working jobss count
       WebTaskRunner::RedisModule.redis.decr('task:working_jobs')
     end
 
@@ -66,11 +66,11 @@ class WebTaskRunner < Sinatra::Application
   end
 
   # Sets the progress of the current work
-  # It can be used like this in the worker: +WebTaskRunner.work_2_progress = 0.8+
+  # It can be used like this in the worker: +WebTaskRunner.job_2_progress = 0.8+
   1000.times do |i|
     i += 1
     define_singleton_method("job_#{i}_progress=") do |progress|
-      WebTaskRunner::RedisModule.redis.set("task:worker_#{i}_progress", progress)
+      WebTaskRunner::RedisModule.redis.set("task:job_#{i}_progress", progress)
     end
   end
 
@@ -80,7 +80,7 @@ class WebTaskRunner < Sinatra::Application
     WebTaskRunner::RedisModule.redis.set('task:state', 'working')
     WebTaskRunner::RedisModule.redis.set('task:started_at', Time.now)
 
-    # Set the count of worker that should be started
+    # Set the count of jobs that should be started
     jobs_count = @@jobs.count
 
     # Start the worker here
@@ -89,10 +89,10 @@ class WebTaskRunner < Sinatra::Application
     WebTaskRunner::RedisModule.redis.set('task:task_jobs', jobs_count)
     WebTaskRunner::RedisModule.redis.set('task:working_jobs', jobs_count)
 
-    # Reset the progress of each worker
+    # Reset the progress of each job
     jobs_count.times do |i|
       i -= 1
-      WebTaskRunner::RedisModule.redis.set("task:worker_#{i}_progress", 0)
+      WebTaskRunner::RedisModule.redis.set("task:job_#{i}_progress", 0)
     end
   end
 
@@ -140,12 +140,12 @@ class WebTaskRunner < Sinatra::Application
   def self.task_progress
     return nil if current_state == 'idle'
     task_jobs = WebTaskRunner::RedisModule.redis.get('task:task_jobs').to_i
-    return nil unless task_jobs
+    return nil if task_jobs < 1
     total_progress = 0.0
 
     task_jobs.times do |i|
       i += 1
-      total_progress += WebTaskRunner::RedisModule.redis.get("task:worker_#{i}_progress").to_f
+      total_progress += WebTaskRunner::RedisModule.redis.get("task:job_#{i}_progress").to_f
     end
 
     total_progress / task_jobs.to_f
