@@ -17,7 +17,7 @@ class WebTaskRunner < Sinatra::Application
     @@jobs
   end
 
-  # GET /?key=<api_key> - retrieve current state of the crawler
+  # GET /?key=<api_key> - retrieve current state of the task runner
   get '/' do
     # Authorize the request
     error 401, JSON.pretty_generate(error: 'Unauthorized') and \
@@ -26,7 +26,16 @@ class WebTaskRunner < Sinatra::Application
     return JSON.pretty_generate(current_info)
   end
 
-  # GET /start?key=<api_key> - start the crawler if idle
+  # GET /?key=<api_key> - retrieve current status of the task
+  get '/status' do
+    # Authorize the request
+    error 401, JSON.pretty_generate(error: 'Unauthorized') and \
+      return if ENV['API_KEY'] != params[:key]
+
+    return JSON.pretty_generate(current_status)
+  end
+
+  # GET /start?key=<api_key> - start the task if idle
   get '/start' do
     # Authorize the request
     error 401, JSON.pretty_generate(error: 'Unauthorized') and \
@@ -34,18 +43,21 @@ class WebTaskRunner < Sinatra::Application
 
     start_task_if_idle
 
-    return 'start'
+    link = "#{request.env['rack.url_scheme']}://#{request.env['HTTP_HOST']}/status?key=#{params[:key]}"
+
+    status 202
+    return JSON.pretty_generate({ status: 'processing', link: link })
   end
 
-  # GET /kill?key=<api_key> - kill the working job
-  get '/kill' do
+  # GET /stop?key=<api_key> - kill the working task
+  get '/stop' do
     # Authorize the request
     error 401, JSON.pretty_generate(error: 'Unauthorized') and \
       return if ENV['API_KEY'] != params[:key]
 
     kill_task
 
-    return 'kill'
+    return JSON.pretty_generate(current_status)
   end
 
   # Report that a job has been done, call this in each job after
@@ -61,6 +73,7 @@ class WebTaskRunner < Sinatra::Application
     # set the state to idle if all the works has been done
     if WebTaskRunner::RedisModule.redis.get('task:working_jobs').to_i < 1
       WebTaskRunner::RedisModule.redis.set('task:state', 'idle')
+      WebTaskRunner::RedisModule.redis.set('task:status', 'ok')
       WebTaskRunner::RedisModule.redis.set('task:finished_at', Time.now)
     end
   end
@@ -78,6 +91,7 @@ class WebTaskRunner < Sinatra::Application
   def self.start_task
     kill_task
     WebTaskRunner::RedisModule.redis.set('task:state', 'working')
+    WebTaskRunner::RedisModule.redis.set('task:status', 'processing')
     WebTaskRunner::RedisModule.redis.set('task:started_at', Time.now)
 
     # Set the count of jobs that should be started
@@ -113,14 +127,16 @@ class WebTaskRunner < Sinatra::Application
   # Kills the running task
   def self.kill_task
     ps = Sidekiq::ProcessSet.new
+    killed_count = 0
     ps.each do |p|
-      p.stop! if p['busy'] > 0
+      p.stop! and killed_count += 1 if p['busy'] > 0
     end
     sleep(0.5)
     Sidekiq::Queue.new.clear
     Sidekiq::ScheduledSet.new.clear
     Sidekiq::RetrySet.new.clear
     WebTaskRunner.job_ended(all: true)
+    WebTaskRunner::RedisModule.redis.set('task:status', 'error') if killed_count > 0
   end
 
   def kill_task  # :nodoc:
@@ -174,7 +190,7 @@ class WebTaskRunner < Sinatra::Application
     WebTaskRunner.task_finished_at
   end
 
-  # Get the info of the task
+  # Get the info of the task runner
   def self.current_info
     info = { state: current_state }
     info[:task_progress] = task_progress if task_progress
@@ -188,11 +204,17 @@ class WebTaskRunner < Sinatra::Application
     WebTaskRunner.current_info
   end
 
-  # Get the status of the task runner
+  # Get the status of the task
   def self.current_status
-    info = { state: current_state }
+    task_status = WebTaskRunner::RedisModule.redis.get('task:status')
+    return {} unless task_status
 
-    info
+    status = { status: task_status }
+    status[:progress] = task_progress if task_progress && task_status == 'processing'
+    status[:started_at] = task_started_at if task_started_at
+    status[:finished_at] = task_finished_at if task_finished_at
+
+    status
   end
 
   def current_status  # :nodoc:

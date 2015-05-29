@@ -33,6 +33,7 @@ Gem::Specification.new do |spec|
   # Job runner
   spec.add_dependency "sidekiq", "~> 3.3.4"
   spec.add_dependency "sidekiq-status"
+  spec.add_dependency "redis-namespace"
 
   # Utilities
   spec.add_dependency "dotenv"

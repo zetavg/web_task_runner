@@ -26,6 +26,78 @@ And then execute:
 Redis is required to run the background jobs. Make sure you have one, and set
 the `REDIS_URL` environment variable to the Redis URL.
 
+## Usage
+
+Just `require 'web_task_runner'` and append jobs to it
+(`WebTaskRunner.jobs << SomeWork`). Then you'll have a Rack app `WebTaskRunner`
+providing web APIs ready to be mounted. Configurations `REDIS_URL`, `API_KEY`
+and `REDIS_NAMESPACE` can be set through environment variables.
+
+Please refer the [Getting Start](#getting-start) section for more details.
+
+### API Endpoints
+
+Note that all APIs has been secured with the `API_KEY`. Each request should
+pass the matching `API_KEY` with the `key` parameter
+(e.g.: `https://example.app/?key=secreat_key`), otherwise an `401 Unauthorized`
+error will be returned.
+
+#### `GET /`
+
+Returns the information of the task runner.
+
+#### `GET /status`
+
+Returns the current (or last) status of running task.
+
+```json
+HTTP/1.1 200 OK
+
+{
+  "status": "processing",
+  "progress": 0.52,
+  "started_at": "2015-05-29 22:36:35 +0000"
+}
+```
+
+ - status: can be `processing`, `ok` or `error`
+ - progress: an float representing the current working progress, presented only
+             if the task is currently in progress
+ - started_at: time of when the task has been started
+ - finished_at: time of when the task has finished, presented only
+                if the last task is finished
+
+#### `GET /start`
+
+Start to run the task (if the task is not currently running).
+
+```json
+HTTP/1.1 202 Accepted
+
+{
+  "status": "processing",
+  "link": "https://example.app/status?key=secreat_key"
+}
+```
+
+ - status: must be `processing`, since the task will be run asynchronously
+ - link: URL for monitoring the started task
+
+#### `GET /stop`
+
+Force stop the current running task.
+
+```json
+HTTP/1.1 200 OK
+
+{
+  "status": "error",
+  "link": "https://example.app/status?key=secreat_key",
+  "started_at": "2015-05-29 22:36:35 +0000",
+  "finished_at": "2015-05-29 23:12:48 +0000"
+}
+```
+
 ## Getting Start
 
 Create and `cd` into a new folder to place the task runner app. After adding
@@ -41,6 +113,7 @@ app to run, you can set it using `$ export` or save them into a file called
 
  - `REDIS_URL`: specify the Redis to connect to
  - `API_KEY`: chose a secret key for accessing the web API
+ - `REDIS_NAMESPACE`: _(optional)_ namespacing Redis keys
 
 ### Create The App
 
@@ -106,7 +179,7 @@ class MyWorkOne < WebTaskRunner::TaskWorker
       sleep(1)
       raise if Random.rand(100) < 2  # simulate errors
       # report the current progress
-      WebTaskRunner.job_1_progress = (i + 1) / 10
+      WebTaskRunner.job_1_progress = (i + 1) / 10.0
     end
   end
 end
@@ -121,16 +194,11 @@ require 'web_task_runner'
 
 class MyWorkOne < WebTaskRunner::TaskWorker
   def exec
-    # sleep one second for ten times
-    10.times do |i|
-      sleep(1)
-      raise if Random.rand(100) < 2  # simulate errors
-      # report the current progress
-      WebTaskRunner.job_1_progress = (i + 1) / 10
-    end
+    # ...
   end
 end
 
+# append the job to task runner
 WebTaskRunner.jobs << MyWorkOne
 ```
 

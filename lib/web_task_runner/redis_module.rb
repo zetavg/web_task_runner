@@ -1,11 +1,15 @@
 require 'sinatra'
 require 'sidekiq'
+require 'redis-namespace'
 
 class WebTaskRunner < Sinatra::Application
   module RedisModule
     def self.connection
       if ENV['REDIS_NAMESPACE']
-        proc { Redis.new(url: ENV['REDIS_URL'], namespace: ENV['REDIS_NAMESPACE']) }
+        proc do
+          redis_c = Redis.new(url: ENV['REDIS_URL'])
+          Redis::Namespace.new(ENV['REDIS_NAMESPACE'], redis: redis_c)
+        end
       else
         proc { Redis.new(url: ENV['REDIS_URL']) }
       end
