@@ -120,7 +120,7 @@ class WebTaskRunner < Sinatra::Application
     Sidekiq::Queue.new.clear
     Sidekiq::ScheduledSet.new.clear
     Sidekiq::RetrySet.new.clear
-    WebTaskRunner.work_ended(all: true)
+    WebTaskRunner.job_ended(all: true)
   end
 
   def kill_task  # :nodoc:
