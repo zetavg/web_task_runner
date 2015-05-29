@@ -5,7 +5,7 @@ require 'web_task_runner/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "web_task_runner"
-  spec.version       = WebTaskRunner::VERSION
+  spec.version       = WebTaskRunnerVersion::VERSION
   spec.authors       = ["Neson"]
   spec.email         = ["neson@dex.tw"]
 

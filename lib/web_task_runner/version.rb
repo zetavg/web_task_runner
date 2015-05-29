@@ -1,9 +1,3 @@
-if defined? Sinatra::Application
-  class WebTaskRunner < Sinatra::Application
-    VERSION = "0.0.1"
-  end
-else
-  class WebTaskRunner
-    VERSION = "0.0.1"
-  end
+class WebTaskRunnerVersion
+  VERSION = "0.0.1"
 end

@@ -9,6 +9,8 @@ require "web_task_runner/redis_module"
 require "web_task_runner/task_worker"
 
 class WebTaskRunner < Sinatra::Application
+  VERSION = WebTaskRunnerVersion::VERSION
+
   @@jobs = []
 
   def self.jobs
