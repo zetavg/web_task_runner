@@ -4,7 +4,11 @@ require 'sidekiq'
 class WebTaskRunner < Sinatra::Application
   module RedisModule
     def self.connection
-      proc { Redis.new(url: ENV['REDIS_URL']) }
+      if ENV['REDIS_NAMESPACE']
+        proc { Redis.new(url: ENV['REDIS_URL'], namespace: ENV['REDIS_NAMESPACE']) }
+      else
+        proc { Redis.new(url: ENV['REDIS_URL']) }
+      end
     end
 
     def self.redis
