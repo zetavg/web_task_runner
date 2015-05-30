@@ -12,9 +12,14 @@ class WebTaskRunner < Sinatra::Application
   VERSION = WebTaskRunnerVersion::VERSION
 
   @@jobs = []
+  @@query_params ||= nil
 
   def self.jobs
     @@jobs
+  end
+
+  before do
+    set_params params
   end
 
   # GET /?key=<api_key> - retrieve current state of the task runner
@@ -219,6 +224,18 @@ class WebTaskRunner < Sinatra::Application
 
   def current_status  # :nodoc:
     WebTaskRunner.current_status
+  end
+
+  def set_params params
+    WebTaskRunner.set_params params
+  end
+
+  def self.set_params params
+    WebTaskRunner::RedisModule.redis.set('url_params', params.to_json)
+  end
+
+  def self.get_params
+    JSON.parse(WebTaskRunner::RedisModule.redis.get('url_params'))
   end
 
   private
