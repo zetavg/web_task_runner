@@ -11,9 +11,10 @@ class WebTaskRunner < Sinatra::Application
 
     attr_accessor :params
 
-    def perform(params)
+    def perform(params = nil)
       return if WebTaskRunner.current_state == 'idle'
-      self.params = params || {}
+
+      self.params = HashWithIndifferentAccess[params]
 
       exec
 
@@ -37,6 +38,15 @@ class WebTaskRunner < Sinatra::Application
       puts <<-EOF
         Define the work in #{self.class}#exec!
       EOF
+    end
+  end
+
+  class HashWithIndifferentAccess < Hash
+    alias_method :regular_reader, :[] unless method_defined?(:regular_reader)
+
+    def [](k)
+      k = k.to_s unless k.is_a?(String)
+      regular_reader(k)
     end
   end
 end
