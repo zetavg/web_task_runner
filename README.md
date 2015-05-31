@@ -155,9 +155,11 @@ require 'web_task_runner'
 
 class MyWorkOne < WebTaskRunner::TaskWorker
   def exec
-    # sleep one second for ten times
+    # yes - you can access all parameters passed with the request
+    x = params[:time] || 1
+    # sleep x second(s) for ten times
     10.times do |i|
-      sleep(1)
+      sleep(x)
       raise if Random.rand(100) < 2  # simulate errors
     end
   end
@@ -174,9 +176,11 @@ require 'web_task_runner'
 
 class MyWorkOne < WebTaskRunner::TaskWorker
   def exec
-    # sleep one second for ten times
+    # yes - you can access all parameters passed with the request
+    x = params[:time] || 1
+    # sleep x second(s) for ten times
     10.times do |i|
-      sleep(1)
+      sleep(x)
       raise if Random.rand(100) < 2  # simulate errors
       # report the current progress
       WebTaskRunner.job_1_progress = (i + 1) / 10.0

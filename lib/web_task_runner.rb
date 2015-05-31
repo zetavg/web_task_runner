@@ -35,7 +35,7 @@ class WebTaskRunner < Sinatra::Application
 
   # GET /start?key=<api_key> - start the task if idle
   get '/start' do
-    start_task_if_idle
+    start_task_if_idle(params)
 
     link = "#{request.env['rack.url_scheme']}://#{request.env['HTTP_HOST']}/status?key=#{params[:key]}"
 
@@ -78,7 +78,7 @@ class WebTaskRunner < Sinatra::Application
   end
 
   # Starts (or kill and restart) the task
-  def self.start_task
+  def self.start_task(params = nil)
     kill_task
     WebTaskRunner::RedisModule.redis.set('task:state', 'working')
     WebTaskRunner::RedisModule.redis.set('task:status', 'processing')
@@ -88,7 +88,9 @@ class WebTaskRunner < Sinatra::Application
     jobs_count = @@jobs.count
 
     # Start the worker here
-    @@jobs.each(&:perform_async)
+    @@jobs.each do |job|
+      job.perform_async(params)
+    end
 
     WebTaskRunner::RedisModule.redis.set('task:task_jobs', jobs_count)
     WebTaskRunner::RedisModule.redis.set('task:working_jobs', jobs_count)
@@ -100,18 +102,18 @@ class WebTaskRunner < Sinatra::Application
     end
   end
 
-  def start_task  # :nodoc:
-    WebTaskRunner.start_task
+  def start_task(params = nil)  # :nodoc:
+    WebTaskRunner.start_task(params)
   end
 
   # Starts the task if it's not running
-  def self.start_task_if_idle
+  def self.start_task_if_idle(params = nil)
     return unless current_state == 'idle'
-    start_task
+    start_task(params)
   end
 
-  def start_task_if_idle  # :nodoc:
-    WebTaskRunner.start_task_if_idle
+  def start_task_if_idle(params = nil)  # :nodoc:
+    WebTaskRunner.start_task_if_idle(params)
   end
 
   # Kills the running task
@@ -209,18 +211,6 @@ class WebTaskRunner < Sinatra::Application
 
   def current_status  # :nodoc:
     WebTaskRunner.current_status
-  end
-
-  def set_params params
-    WebTaskRunner.set_params params
-  end
-
-  def self.set_params params
-    WebTaskRunner::RedisModule.redis.set('url_params', params.to_json)
-  end
-
-  def self.get_params
-    JSON.parse(WebTaskRunner::RedisModule.redis.get('url_params'))
   end
 
   private

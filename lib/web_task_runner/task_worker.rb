@@ -9,8 +9,11 @@ class WebTaskRunner < Sinatra::Application
     include Sidekiq::Worker
     include Sidekiq::Status::Worker
 
-    def perform
+    attr_accessor :params
+
+    def perform(params)
       return if WebTaskRunner.current_state == 'idle'
+      self.params = params || {}
 
       exec
 
