@@ -12,40 +12,29 @@ class WebTaskRunner < Sinatra::Application
   VERSION = WebTaskRunnerVersion::VERSION
 
   @@jobs = []
-  @@query_params ||= nil
 
   def self.jobs
     @@jobs
   end
 
   before do
-    set_params params
+    # Authorize the request
+    error 401, JSON.pretty_generate(error: 'Unauthorized') and \
+      return if ENV['API_KEY'] != params[:key]
   end
 
   # GET /?key=<api_key> - retrieve current state of the task runner
   get '/' do
-    # Authorize the request
-    error 401, JSON.pretty_generate(error: 'Unauthorized') and \
-      return if ENV['API_KEY'] != params[:key]
-
     return JSON.pretty_generate(current_info)
   end
 
   # GET /?key=<api_key> - retrieve current status of the task
   get '/status' do
-    # Authorize the request
-    error 401, JSON.pretty_generate(error: 'Unauthorized') and \
-      return if ENV['API_KEY'] != params[:key]
-
     return JSON.pretty_generate(current_status)
   end
 
   # GET /start?key=<api_key> - start the task if idle
   get '/start' do
-    # Authorize the request
-    error 401, JSON.pretty_generate(error: 'Unauthorized') and \
-      return if ENV['API_KEY'] != params[:key]
-
     start_task_if_idle
 
     link = "#{request.env['rack.url_scheme']}://#{request.env['HTTP_HOST']}/status?key=#{params[:key]}"
@@ -56,10 +45,6 @@ class WebTaskRunner < Sinatra::Application
 
   # GET /stop?key=<api_key> - kill the working task
   get '/stop' do
-    # Authorize the request
-    error 401, JSON.pretty_generate(error: 'Unauthorized') and \
-      return if ENV['API_KEY'] != params[:key]
-
     kill_task
 
     return JSON.pretty_generate(current_status)
